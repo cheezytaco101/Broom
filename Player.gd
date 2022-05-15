@@ -6,13 +6,16 @@ var input_velocity = Vector2() #Desired velocity according to inputs
 var jump_avail = true #Track if player has a jump available
 var gravity_delta = 0
 var gravity_peak_delta = 0
-export (float) var speed_x = 300 #Universal speed multiplier for the x axis
-export (float) var speed_y = 200 #Universal speed multiplier for the y axis
+export (float) var speed_x = 400 #Universal speed multiplier for the x axis
+export (float) var speed_y = 250 #Universal speed multiplier for the y axis
 export (float) var gravity = -50 #Gravity multiplier
 export (int) var walk_drag = 3 #Startup Delay of horizontal movement
 export (int) var air_drag = 10
 export (float) var gravity_peak = -50
-export (float) var jump_weight = 0.05
+export (float) var jump_weight = 0.1
+export (float) var jump_hold_delta_max = 0.7
+var jump_hold = false
+var jump_hold_delta = 0
 
 func _ready():
 	pass
@@ -32,7 +35,7 @@ func get_input():
 		input_velocity.x -= 1
 	if Input.is_action_pressed("Right"):
 		input_velocity.x += 1
-	if Input.is_action_pressed("Jump"):
+	if Input.is_action_just_pressed("Jump"):
 		input_velocity += jump_init()
 	
 func jump_init():
@@ -44,6 +47,7 @@ func jump_init():
 	if jump_avail and is_on_floor():
 		jump_velocity.y -= 1
 		jump_avail = false
+		jump_hold = true
 	
 	return jump_velocity
 	
@@ -64,14 +68,25 @@ func gravity(delta):
 	
 	#If the player is not falling, the gravity is set to constantly be at 1, just in case the player slips off an edge
 	if is_on_floor():
-		gravity_delta = 0	
+		gravity_delta = 0.4	
+	
+	if jump_hold:
+		jump_hold_delta += delta
+		if Input.is_action_just_released("Jump") or jump_hold_delta >= jump_hold_delta_max:
+			jump_hold = false
+			jump_hold_delta = 0 
 	
 	#Check if player jumped, and resets vertical value and jump_delta
 	if input_velocity.y != 0:
 		gravity_magnitude = input_velocity.y * speed_y
 		gravity_delta = 0
 		
-	gravity_magnitude -= gravity * pow(gravity_delta, 2)
+	#Final Velocity Calculationg
+	if jump_hold:
+		gravity_magnitude -= gravity * pow(gravity_delta * (jump_hold_delta / jump_hold_delta_max), 2)
+	else:
+		gravity_magnitude -= gravity * pow(gravity_delta, 2)
+		
 		
 	return gravity_magnitude
 	
